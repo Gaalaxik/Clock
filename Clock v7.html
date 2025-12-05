@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+	
+    <title>Digital Clock</title>
+	
+    <link href="https://fonts.googleapis.com/css2?family=Darker+Grotesque:wght@300;400;500;700&display=swap" rel="stylesheet">
+	
+    <style>
+        html, body {
+            height: 100%;
+        }
+        
+        @keyframes bg-pulse {
+            0% { 
+                background-size: 250% 250%; 
+                opacity: 0.8; 
+            }
+            50% { 
+                background-size: 350% 350%; 
+                opacity: 1; 
+            }
+            100% { 
+                background-size: 250% 250%; 
+                opacity: 0.8; 
+            }
+        }
+
+        @keyframes bg-drift {
+            0% { 
+                background-position: 0% 0%; 
+            }
+            55% { 
+                background-position: 100% 100%; 
+            }
+            100% { 
+                background-position: 0% 0%; 
+            }
+        }
+
+        body {
+            --accent-color: #a7ffff;
+            --accent-r: 167;
+            --accent-g: 255;
+            --accent-b: 255;
+            
+            background-color: #1a1a1a; 
+            color: #fff; 
+            font-family: 'Darker Grotesque', sans-serif;
+            
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            position: relative;
+            overflow-y: hidden;
+
+            background: radial-gradient(circle at center, rgba(var(--accent-r), var(--accent-g), var(--accent-b), 0.15) 0%, rgba(var(--accent-r), var(--accent-g), var(--accent-b), 0) 60%), #1a1a1a;
+            background-size: 250% 250%; 
+            animation: 
+                bg-pulse 20s ease-in-out infinite alternate, 
+                bg-drift 180s ease-in-out infinite alternate; 
+        }
+        
+        h1 {
+            -webkit-text-stroke: 1px var(--accent-color); 
+            color: transparent; 
+            font-size: 6rem; 
+            font-family: 'Darker Grotesque', sans-serif;
+            margin: 0;
+            text-shadow: 0 0 20px rgba(var(--accent-r), var(--accent-g), var(--accent-b), 0.5); 
+            letter-spacing: 5px;
+            line-height: 1;
+        }
+        
+        #greeting {
+            -webkit-text-stroke: 1px var(--accent-color); 
+            color: transparent; 
+            font-weight: 500;
+            font-size: 2.5rem;
+            margin-bottom: 30px; 
+            margin-top: 0; 
+            text-shadow: 0 0 15px rgba(var(--accent-r), var(--accent-g), var(--accent-b), 0.5);
+            letter-spacing: 2px;
+            line-height: 1;
+        }
+
+        #one {
+            color: #aaaaaa;
+			opacity: 0.6;
+            font-size: 1.5rem; 
+            margin-top: 10px;
+            margin-bottom: 40px; 
+            transition: all 0.5s ease;
+            font-weight: 400; 
+        }
+
+        .controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            gap: 10px;
+            z-index: 10;
+			flex-wrap: wrap; 
+			justify-content: flex-end;
+			max-width: 90%;
+        }
+
+        button { 
+            background: none; 
+            border: none;
+            position: relative;
+            
+            -webkit-text-stroke: 1px var(--accent-color); 
+            color: #1a1a1a; 
+            
+            font-size: 1rem;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            
+            transition: color 0.3s ease, background-color 0.3s ease, text-shadow 0.3s ease, 
+                        -webkit-text-stroke 0.3s ease, opacity 0.5s ease; 
+            
+            text-shadow: 0 0 10px rgba(var(--accent-r), var(--accent-g), var(--accent-b), 0.4);
+            
+            font-weight: bold;
+            
+            opacity: 1;
+            pointer-events: auto;
+			
+			/* Make control buttons slightly smaller */
+            padding: 8px 12px;
+            font-size: 0.9rem;
+            margin: 0;
+        }
+		
+        button::before { 
+            content: '';
+            position: absolute;
+            inset: 0; 
+            border: 0px solid var(--accent-color); 
+            border-radius: 8px;
+            box-shadow: none; 
+            background-color: transparent;
+            z-index: -1; 
+            transition: all 0.5s ease;
+        }
+        
+        button:hover {
+            background-color: none; 
+			text-shadow: 0 0 45px rgba(var(--accent-r), var(--accent-g), var(--accent-b), 0.7); 
+        }
+        
+        button:hover::before { 
+            border: 0px solid var(--accent-color); 
+            box-shadow: none; 
+        }
+		
+        #timeZoneModal {
+            display: none; /* Hidden by default */
+            position: fixed; 
+            z-index: 20; 
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto; 
+            background-color: rgba(0,0,0,0.85); 
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background-color: #1a1a1a;
+            padding: 20px;
+            border-radius: 20px; /* Rounded corners */
+            width: 90%; 
+            max-width: 400px; 
+            box-shadow: 0 0 40px rgba(var(--accent-r), var(--accent-g), var(--accent-b), 0.9), 
+                        0 0 10px rgba(var(--accent-r), var(--accent-g), var(--accent-b), 0.5) inset;
+            border: 2px solid var(--accent-color); 
+            position: relative;
+            animation: fadeIn 0.3s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .modal-header {
+            -webkit-text-stroke: 1px var(--accent-color); 
+            color: transparent; 
+            font-size: 1.5rem;
+            text-align: center;
+            margin-bottom: 20px;
+            text-shadow: 0 0 15px rgba(var(--accent-r), var(--accent-g), var(--accent-b), 0.5);
+            font-weight: 700;
+        }
+
+        .modal-body {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 8px;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+
+        .timezone-button {
+            -webkit-text-stroke: 1px var(--accent-color); 
+            color: #1a1a1a; 
+            text-shadow: 0 0 15px rgba(var(--accent-r), var(--accent-g), var(--accent-b), 0.4);
+            font-size: 1rem;
+            font-weight: 500;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid rgba(var(--accent-r), var(--accent-g), var(--accent-b), 0.5);
+        }
+
+        .timezone-button:hover {
+            background-color: rgba(var(--accent-r), var(--accent-g), var(--accent-b), 0.1);
+            text-shadow: 0 0 25px rgba(var(--accent-r), var(--accent-g), var(--accent-b), 0.8);
+        }
+        
+        .timezone-button.selected {
+            background-color: rgba(var(--accent-r), var(--accent-g), var(--accent-b), 0.2);
+            -webkit-text-stroke: 0.5px var(--accent-color); 
+            color: #ffffff;
+            text-shadow: 0 0 30px rgba(var(--accent-r), var(--accent-g), var(--accent-b), 1);
+        }
+        
+        .close-button {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            color: var(--accent-color);
+            font-size: 1.5rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: opacity 0.3s;
+        }
+
+        .close-button:hover {
+            opacity: 0.8;
+        }
+
+        .controls button { 
+            padding: 8px 12px;
+            font-size: 0.9rem;
+            margin: 0;
+        }
+
+        body.fullscreen-active .controls,
+        body.fullscreen-active #toggleButton { 
+            opacity: 0 !important;
+            pointer-events: none !important;
+        }
+
+        body.fullscreen-active h1 {
+            font-size: 8rem;
+            transition: font-size 0.5s ease;
+        }
+        
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 3rem; 
+            }
+            #greeting {
+                font-size: 1.5rem;
+                margin-bottom: 20px;
+            }
+            #one {
+                font-size: 1rem;
+                margin-bottom: 30px;
+            }
+            .controls {
+                top: 10px;
+                right: 10px;
+                flex-direction: column; 
+                gap: 5px;
+                align-items: flex-end;
+            }
+            .controls button { 
+                font-size: 0.75rem;
+            }
+            body {
+                padding: 10px;
+            }
+            
+            body.fullscreen-active h1 {
+                font-size: 5rem; 
+            }
+            .modal-content {
+                max-width: 95%;
+            }
+        }
+        
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #1a1a1a;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background-color: var(--accent-color);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #ffffff;
+        }
+    </style>
+</head>
+<body>
+    
+    <div class="controls">
+        <button id="fullscreenButton" onclick="toggleFullScreen()">Full Screen (F)</button>
+        <button id="colorChangerButton" onclick="cycleColor()">Change Color</button>
+		<button id="dateFormatButton" onclick="cycleDateFormat()">Date Format: Long</button>
+        <button id="autoCycleButton" onclick="toggleAutoColorCycle()">Start Auto Color Cycle</button>
+		<button id="openTimeZoneModalButton" onclick="openTimeZoneModal()">Local Time</button>
+    </div>
+
+    <p id="greeting">Loading greeting...</p>
+
+    <h1 id="timeDisplay">00:00:00</h1>
+    
+    <p id="one">Date Loading...</p>
+    
+    <button id="toggleButton" onclick="FOne()">Switch to 12-Hour</button>
+    
+    <div id="timeZoneModal" style="display: none;">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeTimeZoneModal()">&times;</span>
+            <div class="modal-header">Select Time Zone</div>
+            <div class="modal-body" id="timeZoneButtonContainer">
+                </div>
+        </div>
+    </div>
+    <script>
+    let is12HourFormat = false;
+    let currentColorIndex = 0;
+	let dateFormatIndex = 0;
+    let autoCycleIntervalId = null;
+    let isAutoCycleActive = false;
+	let selectedTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone; 
+    
+    const COLOR_STORAGE_KEY = 'clockThemeIndex';
+	const DATE_FORMAT_STORAGE_KEY = 'clockDateFormatIndex';
+    const AUTO_CYCLE_STORAGE_KEY = 'clockAutoCycleActive';
+	const TIMEZONE_STORAGE_KEY = 'clockTimeZone';
+    const CYCLE_DURATION = 300000; 
+    
+    const colorThemes = [
+        { hex: '#a7ffff', r: 167, g: 255, b: 255, name: 'Cyan' }, 
+        { hex: '#ff69b4', r: 255, g: 105, b: 180, name: 'Pink' }, 
+        { hex: '#9400d3', r: 148, g: 0, b: 211, name: 'Purple' }, 
+        { hex: '#ffffff', r: 255, g: 255, b: 255, name: 'White' } 
+    ];
+	
+	const dateFormats = [
+		{ name: 'Long', options: { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' } },
+		{ name: 'Medium', options: { year: 'numeric', month: 'short', day: 'numeric' } },
+		{ name: 'Short', options: { year: 'numeric', month: '2-digit', day: '2-digit' } }
+	];
+
+	const timeZones = [
+		{ name: 'Local Time', value: Intl.DateTimeFormat().resolvedOptions().timeZone },
+		{ name: 'UTC', value: 'UTC' },
+		{ name: 'New York (EST/EDT)', value: 'America/New_York' },
+		{ name: 'London (GMT/BST)', value: 'Europe/London' },
+		{ name: 'Berlin (CET/CEST)', value: 'Europe/Berlin' },
+		{ name: 'Dubai (GST)', value: 'Asia/Dubai' },
+		{ name: 'New Delhi (IST)', value: 'Asia/Kolkata' },
+		{ name: 'Singapore (SGT)', value: 'Asia/Singapore' },
+		{ name: 'Tokyo (JST)', value: 'Asia/Tokyo' },
+		{ name: 'Sydney (AEST/AEDT)', value: 'Australia/Sydney' },
+		{ name: 'Los Angeles (PST/PDT)', value: 'America/Los_Angeles' },
+	];
+	
+    function toggleFullScreen() {
+        if (!document.fullscreenElement) {
+            const element = document.documentElement;
+            if (element.requestFullscreen) {
+                element.requestFullscreen();
+            } else if (element.webkitRequestFullscreen) {
+                element.webkitRequestFullscreen();
+            } else if (element.msRequestFullscreen) {
+                element.msRequestFullscreen();
+            }
+            
+            document.body.classList.add('fullscreen-active');
+            
+            document.getElementById('fullscreenButton').textContent = 'Exit Full Screen (F)';
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            } else if (document.webkitExitFullscreen) {
+                document.webkitExitFullscreen();
+            } else if (document.msExitFullscreen) {
+                document.msExitFullscreen();
+            }
+        }
+    }
+    
+    function applyColor(index) {
+        currentColorIndex = index;
+        const newTheme = colorThemes[currentColorIndex];
+        
+        document.body.style.setProperty('--accent-color', newTheme.hex);
+        document.body.style.setProperty('--accent-r', newTheme.r);
+        document.body.style.setProperty('--accent-g', newTheme.g);
+        document.body.style.setProperty('--accent-b', newTheme.b);
+        
+        try {
+            localStorage.setItem(COLOR_STORAGE_KEY, currentColorIndex.toString());
+        } catch (e) {
+            console.error('Error saving color theme to localStorage:', e);
+        }
+    }
+
+    function cycleColor() {
+        const nextIndex = (currentColorIndex + 1) % colorThemes.length;
+        applyColor(nextIndex);
+    }
+    
+    function toggleAutoColorCycle() {
+        isAutoCycleActive = !isAutoCycleActive;
+        const button = document.getElementById('autoCycleButton');
+        
+        if (isAutoCycleActive) {
+            if (autoCycleIntervalId === null) {
+                cycleColor(); 
+                autoCycleIntervalId = setInterval(cycleColor, CYCLE_DURATION);
+            }
+            if (button) {
+                button.textContent = 'Stop Auto Color Cycle';
+            }
+        } else {
+            if (autoCycleIntervalId !== null) {
+                clearInterval(autoCycleIntervalId);
+                autoCycleIntervalId = null;
+            }
+            if (button) {
+                button.textContent = 'Start Auto Color Cycle';
+            }
+        }
+        
+        try {
+            localStorage.setItem(AUTO_CYCLE_STORAGE_KEY, isAutoCycleActive.toString());
+        } catch (e) {
+            console.error('Error saving auto-cycle state to localStorage:', e);
+        }
+    }
+
+
+    function FOne() {
+        is12HourFormat = !is12HourFormat;
+
+        const button = document.getElementById('toggleButton');
+        if (button) {
+            button.textContent = is12HourFormat ? 'Switch to 24-Hour' : 'Switch to 12-Hour';
+        }
+
+        updateTime();
+        updateGreeting(); 
+    }
+	
+	function applyDateFormat(index) {
+        dateFormatIndex = index;
+        
+        const button = document.getElementById('dateFormatButton');
+        if (button) {
+             button.textContent = `Date Format: ${dateFormats[dateFormatIndex].name}`;
+        }
+        
+        try {
+            localStorage.setItem(DATE_FORMAT_STORAGE_KEY, dateFormatIndex.toString());
+        } catch (e) {
+            console.error('Error saving date format to localStorage:', e);
+        }
+        
+        updateTime();
+    }
+	
+	function cycleDateFormat() {
+		const nextIndex = (dateFormatIndex + 1) % dateFormats.length;
+		applyDateFormat(nextIndex);
+	}
+	
+	function changeTimeZone(timeZone) {
+		selectedTimeZone = timeZone;
+		try {
+            localStorage.setItem(TIMEZONE_STORAGE_KEY, selectedTimeZone);
+        } catch (e) {
+            console.error('Error saving timezone to localStorage:', e);
+        }
+		updateTime();
+        updateTimeZoneButtonLabel();
+        closeTimeZoneModal(); 
+	}
+    
+    function updateTimeZoneButtonLabel() {
+        const button = document.getElementById('openTimeZoneModalButton');
+        if (!button) return;
+        
+        const currentZone = timeZones.find(z => z.value === selectedTimeZone) || timeZones[0];
+        button.textContent = currentZone.name;
+    }
+	
+    function openTimeZoneModal() {
+        document.getElementById('timeZoneModal').style.display = 'flex';
+        highlightSelectedTimeZoneButton();
+    }
+    
+    function closeTimeZoneModal() {
+        document.getElementById('timeZoneModal').style.display = 'none';
+    }
+
+    function highlightSelectedTimeZoneButton() {
+        document.querySelectorAll('.timezone-button').forEach(btn => {
+            btn.classList.remove('selected');
+        });
+        
+        const selectedButton = document.querySelector(`.timezone-button[data-timezone="${selectedTimeZone}"]`);
+        if (selectedButton) {
+            selectedButton.classList.add('selected');
+        }
+    }
+
+	function populateTimeZoneModal() {
+		const container = document.getElementById('timeZoneButtonContainer');
+		if (!container) return;
+        
+        container.innerHTML = ''; 
+		
+		timeZones.forEach(zone => {
+			const button = document.createElement('button');
+			button.className = 'timezone-button';
+			button.textContent = zone.name;
+            button.setAttribute('data-timezone', zone.value); 
+            
+			button.onclick = () => changeTimeZone(zone.value); 
+			
+			container.appendChild(button);
+		});
+        
+        highlightSelectedTimeZoneButton();
+	}
+
+    function updateGreeting() {
+        const now = new Date();
+		
+		const hour = parseInt(now.toLocaleTimeString('en-US', { hour: '2-digit', hourCycle: 'h23', timeZone: selectedTimeZone }), 10);
+		
+        const greetingElement = document.getElementById("greeting");
+        let greetingText = "Hello!";
+
+        if (hour >= 5 && hour < 12) {
+            greetingText = "Good Morning!";
+        } else if (hour >= 12 && hour < 17) {
+            greetingText = "Good Afternoon!";
+        } else if (hour >= 17 && hour < 22) {
+            greetingText = "Good Evening!";
+        } else {
+            greetingText = "Time to rest! 😴";
+        }
+
+        if (greetingElement) {
+            greetingElement.textContent = greetingText;
+        }
+    }
+
+    function updateTime() {
+        const now = new Date();
+        
+        const timeString = now.toLocaleTimeString('en-US', {
+            hour: '2-digit', 
+            minute: '2-digit', 
+            second: '2-digit', 
+            hour12: is12HourFormat,
+			timeZone: selectedTimeZone
+        });
+
+        const timeZoneString = now.toLocaleTimeString('en-US', {
+            timeZone: selectedTimeZone,
+            timeZoneName: 'short' 
+        }).split(' ').pop(); 
+
+        const currentDateFormatOptions = { 
+			...dateFormats[dateFormatIndex].options,
+			timeZone: selectedTimeZone 
+		};
+        const dateString = now.toLocaleDateString('en-US', currentDateFormatOptions);
+
+        const timeElement = document.getElementById("timeDisplay");
+        if (timeElement) {
+            timeElement.textContent = timeString;
+        }
+        
+        const dateElement = document.getElementById("one");
+        if (dateElement) {
+            dateElement.textContent = dateString + ' (' + timeZoneString + ')'; 
+        }
+
+        updateGreeting(); 
+    }
+
+    function toggleButtonVisibility() {
+        const controlsDiv = document.querySelector('.controls');
+        const toggleButton = document.getElementById('toggleButton');
+
+        if (controlsDiv && toggleButton) {
+            const isVisible = controlsDiv.style.opacity !== '0';
+            const targetOpacity = isVisible ? '0' : '1';
+            const targetEvents = isVisible ? 'none' : 'auto';
+
+            controlsDiv.style.opacity = targetOpacity;
+            toggleButton.style.opacity = targetOpacity;
+            controlsDiv.style.pointerEvents = targetEvents;
+            toggleButton.style.pointerEvents = targetEvents;
+        }
+    }
+    
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'h' || event.key === 'H') {
+            toggleButtonVisibility();
+            event.preventDefault(); 
+        } else if (event.key === 'f' || event.key === 'F') {
+            toggleFullScreen();
+            event.preventDefault(); 
+        } else if (event.key === 'Escape') {
+            closeTimeZoneModal(); 
+        }
+    });
+    
+    window.onclick = function(event) {
+        const modal = document.getElementById('timeZoneModal');
+        if (event.target === modal) {
+            closeTimeZoneModal();
+        }
+    }
+
+    document.addEventListener('fullscreenchange', (event) => {
+        const isFullScreen = document.fullscreenElement;
+        const button = document.getElementById('fullscreenButton');
+        
+        if (isFullScreen) {
+            document.body.classList.add('fullscreen-active');
+            if (button) {
+                button.textContent = 'Exit Full Screen (F)';
+            }
+        } else {
+            document.body.classList.remove('fullscreen-active');
+            if (button) {
+                button.textContent = 'Full Screen (F)';
+            }
+        }
+    });
+
+    let savedColorIndex = 0;
+    try {
+        const storedColorValue = localStorage.getItem(COLOR_STORAGE_KEY);
+        if (storedColorValue !== null) {
+            const parsedIndex = parseInt(storedColorValue, 10);
+            if (!isNaN(parsedIndex) && parsedIndex >= 0 && parsedIndex < colorThemes.length) {
+                savedColorIndex = parsedIndex;
+            }
+        }
+    } catch (e) {
+        console.error('Error loading color theme to localStorage:', e);
+    }
+    applyColor(savedColorIndex); 
+	
+    let savedDateIndex = 0; 
+	try {
+		const storedDateValue = localStorage.getItem(DATE_FORMAT_STORAGE_KEY);
+		if (storedDateValue !== null) {
+			const parsedIndex = parseInt(storedDateValue, 10);
+			if (!isNaN(parsedIndex) && parsedIndex >= 0 && parsedIndex < dateFormats.length) {
+				savedDateIndex = parsedIndex;
+			}
+		}
+	} catch (e) {
+		console.error('Error loading date format from localStorage:', e);
+	}
+	applyDateFormat(savedDateIndex);
+
+    let savedAutoCycleActive = false;
+    try {
+        const storedAutoCycleValue = localStorage.getItem(AUTO_CYCLE_STORAGE_KEY);
+        if (storedAutoCycleValue === 'true') {
+            savedAutoCycleActive = true;
+        }
+    } catch (e) {
+        console.error('Error loading auto-cycle state to localStorage:', e);
+    }
+    
+    if (savedAutoCycleActive) {
+        isAutoCycleActive = false; 
+        toggleAutoColorCycle();
+    } else {
+        const button = document.getElementById('autoCycleButton');
+        if (button) {
+            button.textContent = 'Start Auto Color Cycle';
+        }
+    }
+	
+	try {
+		const storedTimeZone = localStorage.getItem(TIMEZONE_STORAGE_KEY);
+		if (storedTimeZone) {
+			selectedTimeZone = storedTimeZone;
+		}
+	} catch (e) {
+		console.error('Error loading timezone from localStorage:', e);
+	}
+	
+	populateTimeZoneModal(); 
+    updateTimeZoneButtonLabel(); 
+
+    updateTime();
+    setInterval(updateTime, 1000); 
+    </script>
+</body>
+</html>
